@@ -138,6 +138,14 @@ class ScreenConfig:
     def getData(self):
         return self.data
 
+    def getOut(self):
+        if self.tr is not None:
+            self.stop_thread = True
+            self.tr.join()
+            self.stop_thread = False
+            self.tr = None
+        return True
+
     def __call__(self):
         #detecção de voz
         if self.obterDados and self.tr is None:
@@ -164,12 +172,7 @@ class ScreenConfig:
                 elif tn.value == "next":
                     self.texts.next()
                 elif tn.value == "ok":
-                    if self.tr is not None:
-                        self.stop_thread = True
-                        self.tr.join()
-                        self.stop_thread = False
-                        self.tr = None
-                    return True
+                    return self.getOut()
                 elif tn.value == "change":
                     self.texts.go(tn.args[0])
                 elif tn.value is not None:
@@ -185,6 +188,9 @@ class ScreenConfig:
         else:
             self.lock = False
             self.obterDados = False
+
+        if key[pygame.K_SPACE]:
+            return self.getOut()
 
         #desenhar elementos na tela
         self.screen.fill(self.backgroundcolor)

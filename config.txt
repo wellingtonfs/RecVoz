@@ -7,23 +7,3 @@ LC1, LC2, WT, observação
 LT, largura, altura, WT
 
 # o '@@' separa um modelo de outro
-# 
-@@
-
-ponto, local, data|date, espécie, LC1|float, LC2|float, LT|float, WT|float, largura|float, altura|float, sexo, maturidade, observação
-LC1, LC2, WT, observação
-LT, largura, altura, WT
-LT, largura, WT
-espécie, largura, altura
-
-@@
-
-ponto, local, data|date, espécie, LC1|float, LC2|float, LT|float, WT|float, largura|float, altura|float, sexo, maturidade, observação
-LC1, LC2, WT, observação
-LT, largura, altura, WT
-
-@@
-
-ponto, local, data|date, espécie, LC1|float, LC2|float, LT|float, WT|float, largura|float, altura|float, sexo, maturidade, observação
-LC1, LC2, WT, observação
-LT, largura, altura, WT

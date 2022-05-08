@@ -69,9 +69,17 @@ class Data:
         self.ponteiro = (self.ponteiro + 1) % len(self.data)
 
     def saveData(self):
-        print("salvando ....")
-        print(self.data[self.ponteiro])
-    
+        mod = self.data[self.ponteiro]['modelo']['valor']
+
+        for key in self.data[self.ponteiro]:
+            d = self.data[self.ponteiro][key]
+
+            if '__' in key or key == 'modelo': continue
+            if d['modelo'] is not None and not mod in d['modelo']:
+                d['valor'] = '0.0'
+
+            print(key, d['valor'])
+
 def GetDataFromTXT(path):
     with open(path, 'r') as f:
         texto = f.readlines()
