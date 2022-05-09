@@ -12,6 +12,10 @@ class Texts:
         self.ponteiro = 0
         self.dataObj = None
         self.data = None
+        self.meses = [
+            "janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro",
+            "outubro", "novembro", "dezembro"
+        ]
 
     def plot(self):
         x = 100
@@ -60,7 +64,23 @@ class Texts:
         dados = self.data[self.ponteiro][1]
 
         if dados["tipo"] == "date":
-           self.saveData(txt)
+            txt = txt.lower().split()
+            txt = [
+                self.meses.index(t) + 1 if t in self.meses else t for t in txt
+            ]
+
+            nums = []
+
+            for t in txt:
+                if lx.isNumber(t):
+                    tn = str(int(t))
+                    nums.append(tn if len(tn) > 1 else '0' + tn)
+
+            if len(nums) == 3:
+                self.saveData('/'.join(nums))
+            else:
+                self.saveData("erro: não entendi", move=False)
+
         elif dados["tipo"] == "mod":
             txt = txt.lower().split()[-1].strip()
             txt = txt if len(txt) == 1 else txt[0]

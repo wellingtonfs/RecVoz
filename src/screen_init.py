@@ -30,7 +30,7 @@ class ScreenInit:
         self.fonteMenor = pygame.font.Font(os.path.join(pathRoot, "rec", "Florida Project Phase One.ttf"), 20)
 
         self.backgroundcolor = 255, 255, 255
-        self.data = GetDataFromTXT(os.path.join(pathRoot, "config.txt"))
+        self.data = GetDataFromTXT(pathRoot, os.path.join(pathRoot, "config.txt"))
         self.texts = TextOptions(screen, self.fonteMenor, self.data)
         self.tempo = time.time()
 

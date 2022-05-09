@@ -15,6 +15,9 @@ class Texts:
         self.nT = False
         self.cbEnd = cbEnd
 
+        self.numbrsM = ['um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez']
+        self.numbrsF = ['uma', 'duas']
+
     def setData(self, data):
         self.data = data
         self.keys = list(map(lambda x: x[0], self.data.getVars()))
@@ -55,8 +58,40 @@ class Texts:
         if sizeKeys > 0 and self.ponteiro == 0:
             self.cbEnd()
 
-    def updateNumber(self, number):
-        self.data.updateVar(self.keys[self.ponteiro], number)
+    def fixTextForObs(self, text):
+        res = []
+        text = text.replace(' e ', ' ')
+        text = text.replace('aquela', 'quela').replace(" kg", " quela")
+        text = text.replace(" cadela", " quela").replace(" tela", " quela")
+        text = text.replace('-', 'menos ').replace("que elas", "quelas")
+        text = text.replace('pata', 'pereiópodo').replace(" queda", " quela")
+        text = text.replace('período', 'pereiópodo').replace('play opus', 'pleópodes')
+        text = text.replace('playoffs', 'pleópodes').replace('petrópolis', 'pleópodes')
+        text = text.replace('nadadeiras', 'pleópodes').replace('nadadeira', 'pleópodes')
+        text = text.replace('mamadeiras', 'pleópodes').replace('mamadeira', 'pleópodes')
+        text = text.replace('própolis', 'pleópodes')
+
+        m = False
+        for t in text.split():
+            if t == 'menos':
+                if not m:
+                    m = True
+                else:
+                    t = ','
+            elif t in self.numbrsM:
+                t = str(self.numbrsM.index(t) + 1)
+            elif t in self.numbrsF:
+                t = str(self.numbrsF.index(t) + 1)
+            
+            res.append(t)
+
+        return (' '.join(res)).replace(' ,', ',')
+
+    def updateValue(self, valor):
+        if 'obs' in self.keys[self.ponteiro]:
+            valor = self.fixTextForObs(valor)
+
+        self.data.updateVar(self.keys[self.ponteiro], valor)
         self.next()
         self.nT = True if self.data.getVarType(self.keys[self.ponteiro]) != 'float' else False
 
@@ -155,7 +190,7 @@ class ScreenInput:
 
             if tn.ok:
                 if tn.isNumber:
-                    self.texts.updateNumber(tn.value)
+                    self.texts.updateValue(tn.value)
                 elif tn.value == "back":
                     self.texts.back()
                 elif tn.value == "config":
@@ -166,7 +201,7 @@ class ScreenInput:
                         self.tr = None
                     return True
                 else:
-                    self.texts.updateNumber(tn.value)
+                    self.texts.updateValue(tn.value)
 
             self.buffer.pop()
 

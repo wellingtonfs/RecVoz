@@ -1,6 +1,9 @@
+import os
+
 class Data:
-    def __init__(self, data):
+    def __init__(self, pathRoot, data):
         self.currentModel = None
+        self.pathSave = os.path.join(pathRoot, "data", "dados.csv")
 
         self.data = [self.init_data(v) for v in data]
         self.ponteiro = 0
@@ -71,6 +74,9 @@ class Data:
     def saveData(self):
         mod = self.data[self.ponteiro]['modelo']['valor']
 
+        titles = []
+        dados = []
+
         for key in self.data[self.ponteiro]:
             d = self.data[self.ponteiro][key]
 
@@ -78,9 +84,19 @@ class Data:
             if d['modelo'] is not None and not mod in d['modelo']:
                 d['valor'] = '0.0'
 
-            print(key, d['valor'])
+            titles.append(key)
+            dados.append(d['valor'])
 
-def GetDataFromTXT(path):
+        if os.path.isfile(self.pathSave):
+            titles = None
+
+        with open(self.pathSave, 'a') as f:
+            if titles is not None:
+                f.write(','.join(titles) + '\n')
+                
+            f.write(','.join(dados) + '\n')
+
+def GetDataFromTXT(pathRoot, path):
     with open(path, 'r') as f:
         texto = f.readlines()
         texto = [v.replace('\n', '') for v in texto if v[0] != '#' and len(v) > 1]
@@ -119,7 +135,7 @@ def GetDataFromTXT(path):
 
             count += 1
 
-    return Data(partes)
+    return Data(pathRoot, partes)
 
 
 if __name__ == "__main__":

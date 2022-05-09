@@ -57,8 +57,8 @@ class Microfone:
 			return frase
 			#return preprocessamento(frase)
 		except sr.UnknownValueError:
-			import random
-			return str(random.randint(0, 150))
+			#import random
+			#return str(random.randint(0, 150))
 			return None
 
 '''
