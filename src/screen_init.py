@@ -27,7 +27,12 @@ class TextOptions:
 class ScreenInit:
     def __init__(self, screen, pathRoot):
         self.screen = screen
-        self.fonteMenor = pygame.font.Font(os.path.join(pathRoot, "rec", "Florida Project Phase One.ttf"), 20)
+
+        with open(os.path.join(pathRoot, "rec", "font.txt")) as f:
+            nameFont = f.read().replace('\n', '')
+
+        self.fonteMenor = pygame.font.SysFont(nameFont, 20)
+        #self.fonteMenor = pygame.font.Font(os.path.join(pathRoot, "rec", "Florida Project Phase One.ttf"), 20)
 
         self.backgroundcolor = 255, 255, 255
         self.data = GetDataFromTXT(pathRoot, os.path.join(pathRoot, "config.txt"))

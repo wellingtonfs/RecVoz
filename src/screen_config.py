@@ -124,8 +124,15 @@ class TextsModels:
 class ScreenConfig:
     def __init__(self, screen, pathRoot):
         self.screen = screen
-        self.fonte = pygame.font.Font(os.path.join(pathRoot, "rec", "Florida Project Phase One.ttf"), 35)
-        self.fonteMenor = pygame.font.Font(os.path.join(pathRoot, "rec", "Florida Project Phase One.ttf"), 20)
+
+        with open(os.path.join(pathRoot, "rec", "font.txt")) as f:
+            nameFont = f.read().replace('\n', '')
+
+        self.fonte = pygame.font.SysFont(nameFont, 35)
+        self.fonteMenor = pygame.font.SysFont(nameFont, 20)
+
+        #self.fonte = pygame.font.Font(os.path.join(pathRoot, "rec", "Florida Project Phase One.ttf"), 35)
+        #self.fonteMenor = pygame.font.Font(os.path.join(pathRoot, "rec", "Florida Project Phase One.ttf"), 20)
         self.microOn = pygame.image.load(os.path.join(pathRoot, "rec", "micro_on.png"))
         self.microOff = pygame.image.load(os.path.join(pathRoot, "rec", "micro_off.png"))
         self.modelos = pygame.image.load(os.path.join(pathRoot, "rec", "modelos.png"))
