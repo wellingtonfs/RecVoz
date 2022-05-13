@@ -1,145 +1,262 @@
 import os
+from datetime import datetime
+import pandas as pd
+
+def getDate():
+    date = datetime.now()
+
+    return ('%2d_%2d_%d' %(date.day, date.month, date.year)).replace(' ', '0')
 
 class Data:
-    def __init__(self, pathRoot, data):
+    def __init__(self, pathRoot, data, funcR):
         self.currentModel = None
-        self.pathSave = os.path.join(pathRoot, "data", "dados.csv")
+        self.pathSave = {}
 
-        self.data = [self.init_data(v) for v in data]
-        self.ponteiro = 0
+        self.dicionario = data["dicionario"]
+        self.comandos = data["comandos"]
+        self.dadosGerais = data["vars"]
 
-    def init_data(self, d):
-        d["modelo"] = {"valor": 'a', "tipo": "mod", "modelo": None} #modelo padrão
-        self.currentModel = 'a'
-        return d
+        self.optGeral = list(self.dadosGerais.keys())
 
-    def setModel(self, model):
-        self.currentModel = model
+        self.modeloAtual = 0
+        self.posOptGeral = 0
 
-    def getModelKeys(self):
-        return list(self.data[self.ponteiro]["__modelos"].keys())
+        self.pathRoot = pathRoot
+        self.funcR = funcR
 
-    def getModels(self):
-        return self.data[self.ponteiro]["__modelos"]
+        for name in data["vars"]:
+            self.pathSave[name] = os.path.join(pathRoot, "data", "%s_%s.xlsx" %(name, getDate()))
+            self.pathSave[name+'bkp'] = os.path.join(pathRoot, "data", "%s_%s_bkp.txt" %(name, getDate()))
 
-    def getOptions(self):
-        return list(
-            map(lambda x: ', '.join(
-                [v for v in list(x.keys()) if not '__' in v and v != "modelo"]
-            ), self.data)
-        )
+            if os.path.isfile(self.pathSave[name]):
+                tab = pd.read_excel(self.pathSave[name], index_col=0).fillna('').astype(str)
+                self.setTab(name, tab)
 
-    def __str__(self):
-        return ', '.join([v[1]['valor'] for v in self.getInfo() if v[0] != "modelo"])
+    def getOptName(self):
+        return self.optGeral[self.posOptGeral]
 
-    def getVars(self):
-        if self.currentModel is None: return None
+    def getTab(self, name):
+        return self.dadosGerais[name]["tabela"]
 
-        return self.getFromModel(self.currentModel)
+    def getLastLines(self, qtd):
+        tab = self.getTab(self.getOptName())
 
-    def getInfo(self):
-        return self.getFromModel(None)
+        idx = tab.last_valid_index()
+        if idx is None: return ["Sem Dados" for _ in range(qtd)]
 
-    def getFromModel(self, model):
-        lista = []
-        if model in self.getModelKeys():
-            for v in self.data[self.ponteiro]["__modelos"][model]:
-                lista.append([v, self.data[self.ponteiro][v]])
-            
-        else:
-            for v in list(self.data[self.ponteiro].items()):
-                if '__' in v[0]:
-                    continue
+        ini = max(0, idx - (qtd - 1))
 
-                if v[1]["modelo"] is None:
-                    if model is None:
-                        lista.append(v)
-
-        return lista
-
-    def updateVar(self, key, valor):
-        self.data[self.ponteiro][key]["valor"] = str(valor)
-
-    def getVarType(self, varname):
-        return self.data[self.ponteiro][varname]["tipo"]
-
-    def back(self):
-        self.ponteiro -= 1
-        if self.ponteiro < 0:
-            self.ponteiro = len(self.data) - 1
-
-    def next(self):
-        self.ponteiro = (self.ponteiro + 1) % len(self.data)
-
-    def saveData(self):
-        mod = self.data[self.ponteiro]['modelo']['valor']
-
-        titles = []
         dados = []
+        for line in tab.loc[ini:idx].values:
+            dados.insert(0, ', '.join(line))
 
-        for key in self.data[self.ponteiro]:
-            d = self.data[self.ponteiro][key]
+        while len(dados) < qtd:
+            dados.append("Sem Dados")
 
-            if '__' in key or key == 'modelo': continue
-            if d['modelo'] is not None and not mod in d['modelo']:
-                d['valor'] = '0.0'
+        return dados
 
-            titles.append(key)
-            dados.append(d['valor'])
+    def setTab(self, name, tab):
+        self.dadosGerais[name]["tabela"] = tab.fillna('')
 
-        if os.path.isfile(self.pathSave):
-            titles = None
+    def getModels(self, current=False):
+        if current:
+            return self.dadosGerais[self.getOptName()]["modelos"]
 
-        with open(self.pathSave, 'a') as f:
-            if titles is not None:
-                f.write(','.join(titles) + '\n')
-                
-            f.write(','.join(dados) + '\n')
+        modelos = {}
 
-def GetDataFromTXT(pathRoot, path):
+        for name in self.dadosGerais:
+            modelos[name] = self.dadosGerais[name]["modelos"]
+
+        return modelos
+
+    def getStaticVars(self):
+        dados = self.dadosGerais[self.getOptName()]["dados"]
+
+        return list(filter(lambda x: x[1]["modelo"] is None, dados.items()))
+
+    def getDinamicVars(self):
+        dados = self.dadosGerais[self.getOptName()]["dados"]
+        modelo = self.dadosGerais[self.getOptName()]["modelos"][self.modeloAtual]
+
+        return [
+            (mod, dados[mod]) for mod in modelo
+        ]
+
+    def updateVar(self, key, value):
+        key, value = str(key), str(value)
+
+        for name in self.dicionario:
+            if key.lower() == name.lower():
+                for fromStr, toStr in self.dicionario[name].items():
+                    value = value.replace(fromStr, toStr)
+
+        for name in self.comandos:
+            if key.lower() == name.lower():
+                for cmd in self.comandos[name]:
+                    value = cmd(key, value)
+
+        value = self.funcR(key, str(value))
+
+        self.dadosGerais[self.getOptName()]["dados"][key]["valor"] = value
+
+    def dropLast(self):
+        name = self.getOptName()
+        tab = self.getTab(name)
+
+        idx = tab.last_valid_index()
+        if idx is None: return
+
+        tab = tab.drop(index=idx)
+
+        self.setTab(name, tab)
+
+    def save(self):
+        dados = self.dadosGerais[self.getOptName()]["dados"]
+        titulo, vars = [], []
+    
+        for name in dados:
+            valor = dados[name]["valor"]
+
+            if dados[name]["modelo"] and not self.modeloAtual in dados[name]["modelo"]:
+                valor = '0.0'
+
+            titulo.append(name)
+            vars.append(valor)
+
+        with open(self.pathSave[self.getOptName()+'bkp'], 'a') as f:
+            line = ','.join(vars)
+            line = self.getOptName() + ': ' + line + '\n'
+            f.write(line)
+
+        serie = pd.DataFrame([vars], columns=titulo)
+
+        tab = self.getTab(self.getOptName())
+        tab = pd.concat([tab, serie], ignore_index=True)
+        self.setTab(self.getOptName(), tab)
+
+        tab.to_excel(self.pathSave[self.getOptName()])
+
+def mostrardados(dado, c=0):
+    if type(dado) == dict:
+        for k in dado:
+            print(' '*c, k)
+            aux = c
+            c += 5
+            mostrardados(dado[k], c)
+            c = aux
+    elif type(dado) == list:
+        print(' '*c, dado)
+    else:
+        print(' '*c, dado)
+
+def GetDataFromTXT(pathRoot, path, funcR):
     with open(path, 'r') as f:
         texto = f.readlines()
         texto = [v.replace('\n', '') for v in texto if v[0] != '#' and len(v) > 1]
 
-    partes = [{"__modelos": {}}]
-    first_line = True
-    count = 97
-    for line in texto:
-        l = [v.strip() for v in line.split(',')]
+    #[print(t) for t in texto]
+    #print(" ")
 
-        if l[0] ==  "@@":
-            partes.append({"__modelos": {}})
+    first_line = True
+    count = 0
+
+    dados = {
+        "dicionario": {},
+        "comandos": {},
+        "vars": {}
+    }
+    partDict = None
+
+    for line in texto:
+        line = [v.strip() for v in line.split(',')]
+
+        if line[0] ==  "@@":
             first_line = True
-            count = 97
+            count = 0
             continue
 
-        if first_line:
-            count = 97
-            for key in l:
-                sepname = key.replace("__", "").strip().split('|')
+        if line[0][0] == '&':
+            partDict = line[0][1:]
+            continue
+        
+        if partDict is not None:
+            if line[0][0] != '$':
+                line = line[0].strip().split('->')
+                words = [None, None]
+
+                for i, w in enumerate(line):
+                    for letra in w:
+                        if letra == "'":
+                            if words[i]:
+                                break
+                            else:
+                                words[i] = []
+
+                        elif words[i] is not None:
+                            words[i].append(letra)
+
+                if partDict in dados["dicionario"].keys():
+                    dados["dicionario"][partDict][''.join(words[0])] = ''.join(words[1])
+                else:
+                    dados["dicionario"][partDict] = { ''.join(words[0]) : ''.join(words[1]) }
+            else:
+                line = ','.join(line)
+                cmd = line[1:]
+
+                try:
+                    if partDict in dados["comandos"].keys():
+                        dados["comandos"][partDict].append( eval(cmd) )
+                    else:
+                        dados["comandos"][partDict] = [ eval(cmd) ]
+                except:
+                    print("Alguma função criada no arquivo config.txt (inicio: $) está mal formulada:\n\t%s" %cmd)
+                    exit(1)
+
+        elif first_line:
+            name, var1 = line[0].split(':')
+            line[0] = var1
+            dados["vars"][name] = {
+                "dados": {},
+                "modelos": {},
+                "tabela": pd.DataFrame()
+            }
+            count = 0
+
+            for var in line:
+                sepname = var.replace("_", "").strip().split('|')
                 tipo = sepname[1] if len(sepname) > 1 else "txt"
 
-                partes[-1][sepname[0]] = {"tipo": tipo, "valor": "0.0" if tipo == 'float' else "", "modelo": None}
+                dados["vars"][name]["dados"][sepname[0]] = {
+                    "tipo": tipo,
+                    "valor": "0.0" if tipo == 'float' else "",
+                    "modelo": None
+                }
 
             first_line = False
         else:
-            for key in l:
-                sepname = key.replace("__", "").strip().split('|')
-                
-                if partes[-1][sepname[0]]["modelo"] is None:
-                    partes[-1][sepname[0]]["modelo"] = [chr(count)]
-                else:
-                    partes[-1][sepname[0]]["modelo"].append(chr(count))
+            for var in line:
+                sepname = var.replace("_", "").strip().split('|')
 
-            partes[-1]["__modelos"][chr(count)] = l
+                if dados["vars"][name]["dados"][sepname[0]]["modelo"] is None:
+                    dados["vars"][name]["dados"][sepname[0]]["modelo"] = [count]
+                else:
+                    dados["vars"][name]["dados"][sepname[0]]["modelo"].append(count)
+
+            if dados["vars"][name]["modelos"]:
+                dados["vars"][name]["modelos"].append(line)
+            else:
+                dados["vars"][name]["modelos"] = [line]
 
             count += 1
 
-    return Data(pathRoot, partes)
+    #mostrardados(dados["comandos"])
+    #mostrardados(dados)
+
+    return Data(pathRoot, dados, funcR)
 
 
 if __name__ == "__main__":
-    partes = GetDataFromTXT("/media/HD/Códigos/Sam/config.txt")
+    partes = GetDataFromTXT("/home/wellington/Documentos/RecVoz", "/home/wellington/Documentos/RecVoz/config.txt")
     print(partes.getModels())
     print("\n")
     print(partes.getInfo())

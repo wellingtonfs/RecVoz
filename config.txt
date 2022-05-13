@@ -2,8 +2,88 @@
 # primeira linha é a linha do excel, as outras são as variáveis anotadas a cada amostra
 # quando for número ou data usa: |float ou |date, o resto é texto
 
-ponto, local, data|date, espécie, LC1|float, LC2|float, LT|float, WT|float, largura|float, altura|float, sexo, maturidade, observação
-LC1, LC2, WT, observação
-LT, largura, altura, WT
+avaliacao-bycatch:Ponto, Local, Data|date, Especie, LC1|float, LC2|float, WT|float, Comprimento|float, Largura|float, Altura|float, Sexo, Maturidade, Obs
+LC1, LC2, WT, Obs
+Comprimento, Largura, Altura, WT, Obs
 
 # o '@@' separa um modelo de outro
+
+@@
+
+teste-bycatch:Numero|float, Experimento, Data|date, Despesca, Rede, Especie, LC1|float, LC2|float, WT|float, Comprimento|float, Largura|float, Altura|float, Sexo, Maturidade, Obs
+LC1, LC2, WT, Obs
+Comprimento, Largura, Altura, WT, Obs
+
+@@
+
+teste-camarao:Numero|float, Experimento, Data|date, Despesca, Rede, Especie, CC|float, CT|float, LC|float, WT|float, Sexo, Obs
+CC, CT, LC, WT, Sexo, Obs
+
+#
+#   Dicionário: Serve para alterar palavras que o programa entende errado
+#   adicionar '&' seguido do nome da variável. Ex: &LT
+#   cada linha seguinte é um correção até que outro '&' seja encontrado
+#   cada correção deve estar entre "'"
+#   todas as correções não devem possuir acentos
+#   funções python podem ser adicionadas com um '$' no inicio
+#   toda função recebe obrigatóriamente dois parâmetros: nome da variável, valor
+#       EX: lambda key, value: 0 if key == 'obs' else 1
+#   as funções servem para alterar algo nos dados que são salvos
+#
+#   para aplicar alguma regra do Dicionário ou algum comando para todas as variáveis:
+#       edite o arquivo regraGeral.py e altere seu a função de lá conforme necessário
+#
+
+&Obs
+
+' e ' -> ' / '
+'aquela' -> 'quela'
+' cadela' -> ' quela'
+' canela' -> ' quela'
+'-' -> 'menos '
+'pata' -> 'pereiopodo'
+'periodo' -> 'pereiopodo'
+'playoffs' -> 'pleopodes'
+'nadadeiras' -> 'pleopodes'
+'mamadeiras' -> 'pleopodes'
+'propolis' -> 'pleopodes'
+' kg' -> ' quelas'
+' km' -> ' quelas'
+' cara' -> ' quela'
+' tela' -> ' quela'
+'que ela' -> 'quela'
+' queda' -> ' quela'
+'play opus' -> 'pleopodes'
+'petropolis' -> 'pleopodes'
+'nadadeira' -> 'pleopodes'
+'mamadeira' -> 'pleopodes'
+
+#$lambda k, v: v.replace(' menos', ' /').replace('.0', '')
+$lambda k, v: v.replace(' menos', '').replace('.0', '')
+
+&Maturidade
+
+'natura' -> 'matura'
+
+&Despesca
+
+'de' -> 'd'
+' ' -> ''
+'.0' -> ''
+
+&Numero
+
+'.0' -> ''
+
+&Rede
+
+'brt' -> 'brd'
+'com flores' -> 'controle'
+
+$lambda k, v: v.upper()
+
+&Especie
+
+'pneus' -> 'penaeus'
+'dani' -> 'danae'
+'da nike' -> 'danae'

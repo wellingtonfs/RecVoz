@@ -1,62 +1,121 @@
 import pygame
-from src.data import GetDataFromTXT
 import os, time
+from src.micro import Microfone
 
-class TextOptions:
-    def __init__(self, screen, fonte, data):
+class ScreenInit:
+    def __init__(self, screen, dados):
         self.screen = screen
-        self.fonte = fonte
-        self.x = lambda s : 640 - s // 2
-        self.y = lambda i : 100 + i * 40
-        self.data = data
 
-    def plot(self):
-        for i, v in enumerate(self.data.getOptions()):
+        with open(os.path.join(dados.pathRoot, "rec", "font.txt")) as f:
+            nameFont = f.read().replace('\n', '')
+
+        self.fonteMenor = pygame.font.SysFont(nameFont, 30)
+        
+        self.microOn = pygame.image.load(os.path.join(dados.pathRoot, "rec", "micro_on.png"))
+        self.microOff = pygame.image.load(os.path.join(dados.pathRoot, "rec", "micro_off.png"))
+
+        self.dados = dados
+        self.options = []
+        self.__novaEstruturaOpt()
+        self.localPoint = 0
+
+        self.microfone = Microfone()
+        self.obterDados = False
+        self.lock = 0
+
+        self.x = lambda s : 640 - s // 2
+        self.y = lambda i : 400 + i * 40
+
+        self.backgroundcolor = 255, 255, 255
+        self.tempo = time.time()
+
+    def __novaEstruturaOpt(self):
+        dados = self.dados.getModels()
+    
+        for i, name in enumerate(dados):
+            for j, v in enumerate(dados[name]):
+                self.options.append([name, v, i, j])
+
+        pygame.display.set_caption(self.options[0][0])
+
+    def __back(self):
+        self.localPoint -= 1
+        if self.localPoint < 0: self.localPoint = len(self.options) - 1
+        pygame.display.set_caption(self.options[self.localPoint][0])
+
+    def __next(self):
+        self.localPoint = (self.localPoint + 1) % len(self.options)
+        pygame.display.set_caption(self.options[self.localPoint][0])
+
+    def plotTexts(self):
+        for i, v in enumerate(self.options):
             cor = (128, 128, 128)
 
-            if i == self.data.ponteiro:
+            if i == self.localPoint:
                 cor = (250, 100, 100)
 
-            size = self.fonte.size(v)[0]
+            text = '[%d] ' %i + v[0] + ': ' + str(v[1])
+
+            size = self.fonteMenor.size(text)[0]
 
             self.screen.blit(
-                self.fonte.render(v, True, cor),
+                self.fonteMenor.render(text, True, cor),
                 (self.x(size), self.y(i))
             )
 
-class ScreenInit:
-    def __init__(self, screen, pathRoot):
-        self.screen = screen
+    def processarTexto(self):
+        dados = self.microfone.getText()
 
-        with open(os.path.join(pathRoot, "rec", "font.txt")) as f:
-            nameFont = f.read().replace('\n', '')
+        if not dados.ok:
+            return False
 
-        self.fonteMenor = pygame.font.SysFont(nameFont, 20)
-        #self.fonteMenor = pygame.font.Font(os.path.join(pathRoot, "rec", "Florida Project Phase One.ttf"), 20)
-
-        self.backgroundcolor = 255, 255, 255
-        self.data = GetDataFromTXT(pathRoot, os.path.join(pathRoot, "config.txt"))
-        self.texts = TextOptions(screen, self.fonteMenor, self.data)
-        self.tempo = time.time()
-
-    def getData(self):
-        return self.data
+        if dados.cmd and dados.cmd[0] == "ok":
+            self.dados.posOptGeral = self.options[self.localPoint][2]
+            self.dados.modeloAtual = self.options[self.localPoint][3]
+            return True
+        elif dados.number and 0 <= dados.getInt() < len(self.options):
+            self.localPoint = dados.getInt()
+            pygame.display.set_caption(self.options[self.localPoint][0])
 
     def __call__(self):
+        self.screen.fill(self.backgroundcolor)
+
         #detecção do teclado
         key = pygame.key.get_pressed()
 
+        if self.obterDados:
+            if self.lock == 1:
+                self.microfone.start()
+                self.lock = 2
+        else:
+            if self.lock == 2:
+                self.microfone.stop()
+
+                devoSair = self.processarTexto()
+                if devoSair:
+                    self.lock = 0
+                    return devoSair
+
+                self.lock = 1
+
+            if self.lock == 0:
+                self.lock = 1
+
         if key[pygame.K_RETURN] or key[pygame.K_KP_ENTER]:
-            return self.data
-        elif key[pygame.K_UP] and time.time() - self.tempo > 0.2:
-            self.data.back()
+            self.obterDados = True
+        else:
+            self.obterDados = False
+
+        if key[pygame.K_UP] and time.time() - self.tempo > 0.2:
+            self.__back()
             self.tempo = time.time()
         elif key[pygame.K_DOWN] and time.time() - self.tempo > 0.2:
-            self.data.next()
+            self.__next()
             self.tempo = time.time()
 
         #desenhar elementos na tela
-        self.screen.fill(self.backgroundcolor)
-        self.texts.plot()
+        self.plotTexts()
 
-        return None
+        self.screen.blit(self.microOn if self.obterDados else self.microOff, (515, 50))
+
+        return 0

@@ -1,0 +1,6 @@
+SpeechRecognition
+pandas
+openpyxl
+pygame
+pyaudio
+playsound

@@ -1,232 +1,251 @@
-import pygame, threading
+import pygame, os, time
 from src.micro import Microfone
-from src.componentes import TextFala, TextInferior, GetTextFromAudio
-import src.lexico as lx
-import os, copy
+from src.componentes import TextFala
+from playsound import playsound
+from threading import Thread
 
-class Texts:
-    def __init__(self, screen, fonte, cbEnd) -> None:
-        self.data = None
-
-        self.screen = screen
-        self.fonte = fonte
-        self.ponteiro = 0
-        self.keys = []
-        self.nT = False
-        self.cbEnd = cbEnd
-
-        self.numbrsM = ['um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez']
-        self.numbrsF = ['uma', 'duas']
-
-    def setData(self, data):
-        self.data = data
-        self.keys = list(map(lambda x: x[0], self.data.getVars()))
-        self.nT = True if self.data.getVarType(self.keys[self.ponteiro]) != 'float' else False
-
-    def needsText(self):
-        return self.nT
-
-    def plot(self):
-        if self.data is None: return
-
-        x = 100
-        startY = 75
-        step = 50
-
-        for i, v in enumerate(self.data.getVars()):
-            cor = (128, 128, 128)
-
-            if i == self.ponteiro:
-                cor = (200, 0, 0)
-
-            self.screen.blit(
-                self.fonte.render("%s: %s" %(v[0], v[1]['valor']), True, cor),
-                (x, startY))
-
-            startY += step
-
-    def back(self):
-        self.ponteiro -= 1
-
-        if self.ponteiro < 0:
-            self.ponteiro = len(self.keys) - 1
-
-    def next(self):
-        sizeKeys = len(self.keys)
-        self.ponteiro = (self.ponteiro + 1) % sizeKeys
-
-        if sizeKeys > 0 and self.ponteiro == 0:
-            self.cbEnd()
-
-    def fixTextForObs(self, text):
-        res = []
-        text = text.replace(' e ', ' ')
-        text = text.replace('aquela', 'quela').replace(" kg", " quela")
-        text = text.replace(" cadela", " quela").replace(" tela", " quela")
-        text = text.replace('-', 'menos ').replace("que elas", "quelas")
-        text = text.replace('pata', 'pereiópodo').replace(" queda", " quela")
-        text = text.replace('período', 'pereiópodo').replace('play opus', 'pleópodes')
-        text = text.replace('playoffs', 'pleópodes').replace('petrópolis', 'pleópodes')
-        text = text.replace('nadadeiras', 'pleópodes').replace('nadadeira', 'pleópodes')
-        text = text.replace('mamadeiras', 'pleópodes').replace('mamadeira', 'pleópodes')
-        text = text.replace('própolis', 'pleópodes')
-
-        m = False
-        for t in text.split():
-            if t == 'menos':
-                if not m:
-                    m = True
-                else:
-                    t = ','
-            elif t in self.numbrsM:
-                t = str(self.numbrsM.index(t) + 1)
-            elif t in self.numbrsF:
-                t = str(self.numbrsF.index(t) + 1)
-            
-            res.append(t)
-
-        return (' '.join(res)).replace(' ,', ',')
-
-    def updateValue(self, valor):
-        if 'obs' in self.keys[self.ponteiro]:
-            valor = self.fixTextForObs(valor)
-
-        self.data.updateVar(self.keys[self.ponteiro], valor)
-        self.next()
-        self.nT = True if self.data.getVarType(self.keys[self.ponteiro]) != 'float' else False
-
-class Molduras:
-    def __init__(self, screen, fonte):
-        self.screen = screen
-        self.fonte = fonte
-        self.buffer = []
-
-        self.x, self.y = 5, 400
-        self.marginTop = 30 #texto
-        self.cor = (128, 128, 128)
-        self.corDest = (200, 100, 100)
-
-    def plot(self):
-        y = self.y
-
-        for data in self.buffer[-10:]:
-            x = self.x
-
-            texto = "|"
-            for key, value in data:
-                texto +=  " %s: " %key
-                self.screen.blit(self.fonte.render(texto, True, self.cor), (x, y))
-                x += self.fonte.size(texto)[0] + 5
-
-                texto =  "%s" %value['valor']
-                self.screen.blit(self.fonte.render(texto, True, self.corDest), (x, y))
-                x += self.fonte.size(texto)[0] + 5
-
-                texto =  " |"
-                self.screen.blit(self.fonte.render(texto, True, self.cor), (x, y))
-                x += self.fonte.size(texto)[0] + 5
-
-                texto = ""
-
-            y += self.marginTop
-
-    def addData(self, data):
-        self.buffer.append(copy.deepcopy(data.getVars()))
+def efeito(path):
+    playsound(path)
 
 class ScreenInput:
-    def __init__(self, screen, pathRoot):
+    def __init__(self, screen, dados):
         self.screen = screen
 
-        with open(os.path.join(pathRoot, "rec", "font.txt")) as f:
+        with open(os.path.join(dados.pathRoot, "rec", "font.txt")) as f:
             nameFont = f.read().replace('\n', '')
 
         self.fonte = pygame.font.SysFont(nameFont, 35)
+        self.fonteHist = pygame.font.SysFont(nameFont, 25)
         self.fonteMenor = pygame.font.SysFont(nameFont, 20)
+        self.fonteH = self.fonte.size("data")[1]
 
-        #self.fonte = pygame.font.Font(os.path.join(pathRoot, "rec", "Florida Project Phase One.ttf"), 35)
-        #self.fonteMenor = pygame.font.Font(os.path.join(pathRoot, "rec", "Florida Project Phase One.ttf"), 20)
-        self.microOn = pygame.image.load(os.path.join(pathRoot, "rec", "micro_on.png"))
-        self.microOff = pygame.image.load(os.path.join(pathRoot, "rec", "micro_off.png"))
+        self.microOn = pygame.image.load(os.path.join(dados.pathRoot, "rec", "micro_on.png"))
+        self.microOff = pygame.image.load(os.path.join(dados.pathRoot, "rec", "micro_off.png"))
+        self.efeitoSonoro = os.path.join(dados.pathRoot, "rec", "efeito.mp3")
 
-        self.backgroundcolor = 255, 255, 255
-
-        self.texts = Texts(screen, self.fonte, self.eventSave)
-        self.textFala = TextFala(screen, self.fonteMenor)
-        self.textInf = TextInferior(screen, self.fonteMenor)
-        self.moldura = Molduras(screen, self.fonteMenor)
+        self.textFala = TextFala(screen, self.fonteMenor, position=True)
         self.microfone = Microfone()
-        self.data = None
+        self.dados = dados
 
-        self.tr = None
-        self.buffer = []
+        self.localPoint = 0
+        self.options = []
+
         self.obterDados = False
-        self.stop_thread = False
-        self.textOriginal = ""
-        self.lock = True
+        self.lock = 0
+        self.salvando = None
+        self.alterandoDados = False
+        self.podeSalvar = True
 
-    def clear(self):
-        self.buffer = []
-        self.textOriginal = ""
-        self.lock = True
+        #infos superior
+        self.y_micro = 235
+        self.x = 100
+        self.startY = 50
+        self.step = 50
 
-    def eventSave(self):
-        self.data.saveData()
-        self.moldura.addData(self.data)
+        #barras
+        self.alturaBarra = 75
+        self.qtdBarras = 5
 
-    def updateData(self, data):
-        self.data = data
-        self.texts.setData(data)
-        self.textInf.setData(data)
+        self.coresBarras = [(200, 200, 220), (235, 235, 255)]
+
+    def plotTextSalvando(self):
+        if self.salvando is None:
+            return
+
+        txt = "Alterando Dados..." if self.alterandoDados else "Dados Salvos"
+
+        size = self.fonte.size(txt)[0]
+
+        self.screen.blit(
+            self.fonte.render(txt, True, (200, 0, 0)),
+            (1260 - size, 20)
+        )
+
+        if time.time() - self.salvando > 2:
+            self.salvando = None
+            self.alterandoDados = False
+        
+    def plotOptions(self):
+        y = self.startY
+        for i, (name, value) in enumerate(self.options):
+            cor = (128, 128, 128)
+
+            if i == self.localPoint:
+                cor = (200, 0, 0)
+
+            self.screen.blit(
+                self.fonte.render("%s: %s" %(name, value["valor"]), True, cor),
+                (self.x, y)
+            )
+
+            y += self.step
+
+    def plotBarras(self):
+        ic = 1 if self.qtdBarras % 2 == 0 else 0
+
+        y = 720 - self.alturaBarra
+
+        listaDados = self.dados.getLastLines(self.qtdBarras)
+        listaDados.reverse()
+
+        for line in listaDados:
+            pygame.draw.rect(
+                self.screen, self.coresBarras[ic], pygame.Rect(0, y, 1280, self.alturaBarra)
+            )
+
+            line = line[:150] + '...' if len(line) > 150 else line
+
+            st = self.fonteHist.size(line)
+            xt = 640 - st[0] // 2
+            yt = y + (self.alturaBarra // 2 - st[1] // 2)
+
+            self.screen.blit(
+                self.fonteHist.render(line, True, (128, 128, 128)),
+                (xt, yt)
+            )
+
+            ic = (ic + 1) % 2
+            y -= self.alturaBarra
+
+    def updateOptions(self):
+        if not self.options:
+            self.options = self.dados.getDinamicVars()
+
+            pygame.display.set_caption(
+                ', '.join([ v[1]["valor"] for v in self.dados.getStaticVars() ])
+            )
+
+            htFont = (self.step * len(self.options) - (self.step - self.fonteH))
+            tam_sup = max(htFont, 250) + 80
+
+            self.qtdBarras = (720 - tam_sup) // self.alturaBarra
+            hs_livre = (720 - (self.qtdBarras * self.alturaBarra)) // 2
+
+            self.y_micro = hs_livre - 250 // 2
+            self.startY = hs_livre - htFont // 2
+
+    def __getCurrentOpt(self):
+        return self.options[self.localPoint]
+
+    #erro aconteceu e deve ser reparado (caso o voltar baixe de 0)
+    def __back(self):
+        self.localPoint -= 1
+
+        if self.localPoint < 0:
+            self.dados.dropLast()
+            self.localPoint = len(self.options) - 1
+            self.salvando = time.time()
+            self.alterandoDados = True
+            self.podeSalvar = True
+
+    def __next(self):
+        self.localPoint = (self.localPoint + 1) % len(self.options)
+
+        if self.podeSalvar and self.localPoint == 0:
+            self.salvando = time.time()
+            self.alterandoDados = False
+
+            tr = Thread(target=efeito, args=(self.efeitoSonoro, ))
+            tr.daemon = True
+            tr.start()
+
+            self.dados.save()
+        elif not self.podeSalvar:
+            self.podeSalvar = True
+
+    def __go(self, key):
+        for i, v in enumerate(self.options):
+            if key.lower() in v[0].lower():
+                self.localPoint = i
+                return
+
+    def processarTexto(self):
+        dados = self.microfone.getText()
+        self.textFala.text = dados.text
+
+        if not dados.ok:
+            return 0
+
+        if dados.cmd:
+            if dados.cmd[0] == "back":
+                self.__back()
+            elif dados.cmd[0] == "next":
+                self.podeSalvar = False
+                self.__next()
+            elif dados.cmd[0] == "ok":
+                self.__next()
+            elif dados.cmd[0] == "change":
+                if "modelo" in dados.cmd[1]:
+                    self.options = []
+                    self.localPoint = 0
+                    return -2
+                elif any([v in dados.cmd[1] for v in dados.config]) or "dados" in dados.cmd[1]:
+                    self.options = []
+                    self.localPoint = 0
+                    return -1
+            #elif dados.cmd[0] == "change":
+            #    self.__go(dados.cmd[-1])
+            elif dados.cmd[0] == "config":
+                self.options = []
+                self.localPoint = 0
+                return -1
+        elif self.__getCurrentOpt()[1]["tipo"] == "date":
+            dataForm = dados.convertDate(dados.text)
+
+            if dataForm:
+                self.dados.updateVar(self.__getCurrentOpt()[0], dataForm)
+                self.__next()
+        elif self.__getCurrentOpt()[1]["tipo"] == "float":
+            if dados.number:
+                self.dados.updateVar(self.__getCurrentOpt()[0], dados.number)
+                self.__next()
+        else:
+            self.dados.updateVar(self.__getCurrentOpt()[0], dados.text)
+            self.__next()
+
+        return 0
 
     def __call__(self):
+        self.screen.fill((255, 255, 255))
+
+        self.updateOptions()
+
         #detecção de voz
-        if self.obterDados and self.tr is None:
-            self.tr = threading.Thread(target = GetTextFromAudio, args =(self.microfone, lambda : self.stop_thread, self.buffer, ))
-            self.tr.daemon = True
-            self.tr.start()
-        elif not self.obterDados and self.tr is not None:
-            self.stop_thread = True
-            self.tr.join()
-            self.stop_thread = False
-            self.tr = None
+        if self.obterDados:
+            if self.lock == 1:
+                self.microfone.start()
+                self.lock = 2
+        else:
+            if self.lock == 2:
+                self.microfone.stop()
+                devoSair = self.processarTexto()
 
-        #comandos de voz
-        while len(self.buffer) > 0:
-            tn = lx.Analise(self.buffer[-1], getText=self.texts.needsText())
-            self.textOriginal = "Não entendi" if tn.original is None else tn.original
+                if devoSair:
+                    self.lock = 0
+                    return devoSair
 
-            if tn.ok:
-                if tn.isNumber:
-                    self.texts.updateValue(tn.value)
-                elif tn.value == "back":
-                    self.texts.back()
-                elif tn.value == "config":
-                    if self.tr is not None:
-                        self.stop_thread = True
-                        self.tr.join()
-                        self.stop_thread = False
-                        self.tr = None
-                    return True
-                else:
-                    self.texts.updateValue(tn.value)
+                self.lock = 1
 
-            self.buffer.pop()
+            if self.lock == 0:
+                self.lock = 1
 
         #detecção do teclado
         key = pygame.key.get_pressed()
 
         if key[pygame.K_RETURN] or key[pygame.K_KP_ENTER]:
-            self.obterDados = True if not self.lock else self.obterDados
+            self.obterDados = True
         else:
-            self.lock = False
             self.obterDados = False
 
-        #desenhar elementos na tela
-        self.screen.fill(self.backgroundcolor)
-        self.texts.plot()
-        self.textFala.plot(self.textOriginal)
-        self.moldura.plot()
-        self.textInf.plot()
+        if key[pygame.K_SPACE]:
+            return True
 
-        self.screen.blit(self.microOn if self.obterDados else self.microOff, (820, 50))
-        return None
+        #self.screen.blit(self.modelos, (140, 430))
+
+        self.screen.blit(self.microOn if self.obterDados else self.microOff, (820, self.y_micro)) #y=235 para ficar no meio
+        self.textFala.plot()
+        self.plotOptions()
+        self.plotTextSalvando()
+        self.plotBarras()
+
+        return 0

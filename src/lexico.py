@@ -1,60 +1,108 @@
-def isNumber(texto):
-	try:
-		_ = float(texto)
-		return True
-	except:
-		return False
-
 #retorna o valor significativo da msg
+cAcento = ['á', 'à', 'â', 'ã', 'é', 'ê', 'í', 'ó', 'õ', 'ô', 'ú', 'ç']
+sAcento = ['a', 'a', 'a', 'a', 'e', 'e', 'i', 'o', 'o', 'o', 'u', 'c']
+numsExt = ["zero", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove", "dez"]
+numsExtF = ["zero", "uma", "duas"]
+meses = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
+
 class Analise:
 	def preprocess(self, texts):
-		while texts.find(" ponto ") >= 0:
-			texts = texts.replace(" ponto ", '.')
+		global cAcento, sAcento, numsExt, numsExtF
 
-		return texts.lower().split()
+		texts = "" if texts is None else texts
 
-	def __init__(self, texto, getText=False):
-		texto = str(texto).strip().lower()
+		texts = str(texts).strip().lower()
+		texts = texts.replace(" ponto ", '.').split()
+
+		for i in range(len(texts)):
+			if texts[i] in numsExt:
+				texts[i] = "%.1f" %(float(numsExt.index(texts[i])))
+			elif texts[i] in numsExtF:
+				texts[i] = "%.1f" %(float(numsExtF.index(texts[i])))
+
+		texts = ' '.join(texts)
 		
-		self.value = None
-		self.args = []
-		self.ok = True
-		self.isNumber = False
-		self.cancelar = ["cancela", "cancelar", "errado", "errei", "não"]
-		self.config = ["configurar", "configuração", "configurações"]
-		self.change = ["altera", "alterar", "muda", "mudar", "trocar"]
-		self.back = ["volta", "voltar", "vó", "vou"]
-		self.voltar = ["volta", "voltar", "vó", "vou"]
-		self.next = ["próximo", "avança", "avançar", "avance"]
-		self.lok = ["ok", "feito", "terminei", "entrar"]
-		self.original = texto
+		ltext = list(texts)
+		for i in range(len(ltext)):
+			if ltext[i] in cAcento:
+				ltext[i] = sAcento[cAcento.index(ltext[i])]
 
+		return ''.join(ltext)
+
+	def __init__(self, texto):
 		texto = self.preprocess(texto)
+
+		self.cmd = []
+		self.number = ""
+		self.text = texto
+		self.ok = True
+
+		texto = texto.split()
+
+		cancelar = ["cancela", "cancelar"]
+		self.config = ["configurar", "configuracao", "configuracoes"]
+		change = ["altera", "alterar", "muda", "mudar", "trocar"]
+		back = ["volta", "voltar", "vo", "vou", "volto"]
+		next = ["proximo", "avanca", "avancar", "avance"]
+		ok = ["ok"]
+
 		tsize = len(texto)
 
 		if tsize == 0:
+			self.text = "Não entendi"
 			self.ok = False
 			return
 
 		#comandos
-		if texto[0] in self.change and 2 <= tsize <= 3:
-			self.value = "change"
-			self.args.append(texto[-1])
-		elif tsize == 1 and texto[0] in self.back:
-			self.value = "back"
-		elif tsize == 1 and texto[0] in self.next:
-			self.value = "next"
-		elif tsize == 1 and texto[0] in self.lok:
-			self.value = "ok"
-		elif tsize == 1 and texto[0] in self.config:
-			self.value = "config"
-		elif getText:
-			self.value = ' '.join(texto)
-		else:
-			self.ok = False
+		for palavra in texto:
+			if palavra in cancelar:
+				self.text = "Cancelado!"
+				self.ok = False
+				break
+			elif palavra in self.config:
+				self.cmd.append("config")
+			elif palavra in change:
+				self.cmd.append("change")
+				self.cmd.append(texto[-1])
+			elif palavra in back:
+				self.cmd.append("back")
+			elif palavra in next:
+				self.cmd.append("next")
+			elif palavra in ok:
+				self.cmd.append("ok")
+			
+			if self.isNumber(palavra):
+				self.number = palavra if '.' in palavra else palavra + '.0'
 
-			for txt in texto[::-1]:
-				if isNumber(txt):
-					self.value = float(txt)
-					self.isNumber = True
-					self.ok = True
+	def isNumber(self, texto):
+		try:
+			_ = float(texto)
+			return True
+		except:
+			return False
+
+	def convertDate(self, texto):
+		global meses
+
+		texto = texto.split()
+		texto = [
+			str(meses.index(t) + 1) if t in meses else str(t) for t in texto
+		]
+
+		nums = []
+
+		for t in texto:
+			if self.isNumber(t):
+				tn = t.split('.')[0]
+				nums.append(tn if len(tn) > 1 else '0' + tn)
+
+		if len(nums) == 3:
+			return '/'.join(nums)
+
+		return None
+
+	def getInt(self):
+		if not self.number:
+			None
+		
+		return int(float(self.number))

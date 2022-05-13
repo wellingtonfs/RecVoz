@@ -12,20 +12,26 @@ def GetTextFromAudio(microfone, stop, buffer):
         buffer.append(microfone.getText(source))
 
 class TextFala:
-    def __init__(self, screen, fonte):
+    def __init__(self, screen, fonte, position=False):
         self.screen = screen
         self.fonte = fonte
-        self.x = lambda s : 945 - s // 2
-        self.y = 315
+        self.x = 1260 if position else 20
+        self.y = 20 if position else 680
         self.cor = (128, 128, 128)
+        self.text = ""
+        self.position = position
 
-    def plot(self, texto):
-        size = self.fonte.size(texto)[0]
+    def plot(self):
+        if not self.text: return
+
+        x = self.x
+        if self.position: x -= self.fonte.size(self.text)[0]
 
         self.screen.blit(
-            self.fonte.render(texto, True, self.cor),
-            (self.x(size), self.y)
+            self.fonte.render(self.text, True, self.cor),
+            (x, self.y)
         )
+
 
 class TextInferior:
     def __init__(self, screen, fonte):

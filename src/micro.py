@@ -1,21 +1,17 @@
 import speech_recognition as sr
-import io
+import io, time, threading
+from src.lexico import Analise
 
-def isNumber(texto):
-	try:
-		_ = float(texto)
-		return True
-	except:
-		return False
+def GetTextFromAudio(microfone, stop, data): 
+    with microfone.source() as source:
+        while not stop(): 
+            microfone.gravar(source)
 
-def preprocessamento(texto):
-	texto = str(texto).strip().lower()
-	texto = texto.split()
-	for txt in texto:
-		if isNumber(txt):
-			return float(txt)
+        t = time.time()
+        while time.time() - t <= 0.55:
+            microfone.gravar(source)
 
-	return None
+        data.append(microfone.textFromAudio(source))
 
 class Microfone:
 	def __init__(self):
@@ -25,6 +21,10 @@ class Microfone:
 
 		self.source = sr.Microphone
 		self.frames = None
+		self.stop_thread = False
+		self.data = []
+
+		self.tr = None
 
 	def gravar(self, source):
 		if self.frames is None:
@@ -37,7 +37,27 @@ class Microfone:
 		self.frames.write(buffer)
 		return True
 
-	def getText(self, source):
+	def start(self):
+		self.data = []
+		self.tr = threading.Thread(target = GetTextFromAudio, args =(self, lambda : self.stop_thread, self.data, ))
+		self.tr.daemon = True
+		self.tr.start()
+
+	def stop(self):
+		if self.tr is None: return
+		
+		self.stop_thread = True
+		self.tr.join()
+		self.stop_thread = False
+		self.tr = None
+
+	def getText(self):
+		if len(self.data) == 0:
+			return Analise("")
+
+		return Analise(self.data[-1])
+
+	def textFromAudio(self, source):
 		if self.frames is None:
 			raise Exception("É preciso gravar algum audio primeiro")
 
