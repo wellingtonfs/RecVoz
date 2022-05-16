@@ -1,6 +1,6 @@
-import os
 from datetime import datetime
 import pandas as pd
+import os
 
 def getDate():
     date = datetime.now()
@@ -23,6 +23,9 @@ class Data:
 
         self.pathRoot = pathRoot
         self.funcR = funcR
+
+        if not os.path.isdir(os.path.join(pathRoot, "data")):
+            os.makedirs(os.path.join(pathRoot, "data"))
 
         for name in data["vars"]:
             self.pathSave[name] = os.path.join(pathRoot, "data", "%s_%s.xlsx" %(name, getDate()))

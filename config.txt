@@ -48,6 +48,7 @@ CC, CT, LC, WT, Sexo, Obs
 'mamadeiras' -> 'pleopodes'
 'propolis' -> 'pleopodes'
 ' kg' -> ' quelas'
+' kilo' -> ' quela'
 ' km' -> ' quelas'
 ' cara' -> ' quela'
 ' tela' -> ' quela'
@@ -87,3 +88,4 @@ $lambda k, v: v.upper()
 'pneus' -> 'penaeus'
 'dani' -> 'danae'
 'da nike' -> 'danae'
+'paulista' -> 'paulensis'

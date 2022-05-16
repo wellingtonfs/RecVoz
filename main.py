@@ -15,7 +15,7 @@ size = width, height = 1280, 720
 
 pygame.display.set_caption("Só falar")
 pygame.display.set_icon(
-    pygame.image.load(os.path.join(pathRoot, "rec", "micro_on.png"))
+    pygame.image.load(os.path.join(pathRoot, "rec", "icon.png"))
 )
 screen = pygame.display.set_mode(size)
 
